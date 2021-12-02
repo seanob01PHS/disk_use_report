@@ -1,3 +1,21 @@
+##############################
+## IMPORTANT  ################
+##############################
+# To make sure that filenames 
+# etc are not uploaded to github
+
+file_list_data/**
+
+*.[Tt][Xx][Tt]
+*.[Cc][Ss][Vv]
+*.[Hh][Tt][Mm][Ll]
+
+##############################
+##############################
+
+# Logo
+*.[Pp][Nn][Gg]
+
 # History files
 .Rhistory
 .Rapp.history
@@ -37,3 +55,4 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+.Rproj.user

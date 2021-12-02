@@ -1,0 +1,161 @@
+---
+title: "LIST disk use report"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    logo: phs_logo_mono.png
+    css: css_styles.css
+date: "`r format(Sys.time(), '%d %b %Y')`"
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(plotly)
+library(crosstalk)
+library(DT)
+library(utf8)
+
+source("pre_process_and_wrangle.R")
+
+```
+# Notes and Overview {data-icon="fa-info-circle"}
+
+## col {data-width=400}
+
+
+### Notes {data-height=200}
+
+* These interactive charts show disk space usage for the ``LIST_analytics`` drive.
+* Hover over the chart for more information, including file paths and user names.
+* <span style="color: red;">**NB:**</span> Users shown as only numbers (e.g. 3266) are no longer working for PHS. The relevant teams should look at these files to determine if they are still of value.
+* This report is a large file. To avoid the irony of filling the drive with this report, please only open it from the email or store it temporarily while in use.
+* If you have any questions or suggestions, please email them [here](mailto:sean.obrien@phs.scot).
+
+<style>
+div.phsblu50 { background-color:#E9D8D8; border-radius: 5px; padding: 18px; color: #A32E14}
+</style>
+<div class = "phsblu50">
+Management Information only, not for onward distribution.
+This report contains detailed information about the company file system and should not be distributed outside of PHS.
+</div>
+
+
+
+### Explanation {data-height=200}
+
+Three additional pages can be selected at the top of the dashboard. They include: 
+
+  1. <mark style="background-color: lightblue">**Users by team**</mark> shows total disk use by users within the team slected via the dropdown menu. The initial view shows disk use for all users.
+  2. <mark style="background-color: lightblue">**Individual users**</mark> shows disk use by filename for the user selected via the dropdown menu. The initial view shows disk use of all files.
+  3. <mark style="background-color: lightblue">**Data**</mark> allows you to view and filter the data and download as necessary (CSV). 
+  
+There is an issue with the drop down filters where selecting **(All)** does not remove the filter. To return to the the unfiltered chart, refresh the page.
+
+## col
+
+### Overview {data-height=100}
+
+* Total disk use of ``LIST_analytics`` is shown below.
+* The chart shows the disk use for each team, derived from filepaths as ``LIST_analytics\<team_name>\...``.
+
+
+### 
+```{r date}
+valueBox(total_usage_str,
+         paste0(used_capacity, " of ", total_capacity, " used."),
+         color = "#867DCA")
+```
+
+
+###
+
+```{r usage_by_group, echo=FALSE}
+group_summary <- group_summary %>% mutate(pie_label=paste(group, total_use_str, sep = "\n"))
+
+m <- list(
+  l = 50,
+  r = 50,
+  b = 50,
+  t = 50,
+  pad = 0
+)
+
+fig <- group_summary %>% plot_ly(labels=~pie_label, values=~total_use)
+fig <- fig %>% add_pie(hole=0.5, textinfo='label', hoverinfo='label+percent', textposition='inside')
+fig <- fig %>% layout(title = list(text="", y=0.6, x=0.1),  showlegend = F, margin = m)
+fig
+```
+
+# Users by team {data-icon="fa-chart-pie"}
+
+## col {data-width=200}
+
+### Choose Team
+```{r input sidebar, echo=FALSE}
+#put weird group names at the end
+group_user_summary <- group_user_summary %>% arrange(grepl("^\\W", group), group)
+group_user_summary <- group_user_summary %>% mutate(pie_label=paste(user, total_use_str, sep = "\n"))
+group_user_summary_shared <- SharedData$new(group_user_summary)
+
+filter_select("group", "Team Name", multiple=FALSE, group_user_summary_shared, ~group)
+```
+
+## col {data-width=800}
+
+### User use in team
+```{r users_in_group, echo=FALSE}
+m <- list(
+  l = -200,
+  r = 0,
+  b = 0,
+  t = 0,
+  pad = 0
+)
+
+fig <- group_user_summary_shared %>% plot_ly(labels = ~pie_label, values = ~total_use)
+fig <- fig %>% add_pie(hole = 0.5, textposition='inside', hoverinfo="label")
+fig <- fig %>% layout(showlegend = F, margins = m,
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+```
+
+# Individual users {data-icon="fa-chart-pie"}
+
+## col {data-width=200}
+
+### Choose User
+```{r choose_user, echo=FALSE}
+#custom label
+files_by_user <- files_by_user %>% mutate(pie_label=paste(file_path, file_size_str, sep = "\n"))
+files_by_user_shared <- SharedData$new(files_by_user)
+filter_select("user", "User", multiple=FALSE, files_by_user_shared, ~user)
+```
+
+## col {data-width=800}
+
+### File sizes for user
+```{r files_by_user, echo=FALSE}
+fig <- files_by_user_shared %>% plot_ly(labels = ~pie_label, values = ~file_size)
+fig <- fig %>% add_pie(hole = 0.5, textposition='inside', hoverinfo="label")
+fig <- fig %>% layout(showlegend = F,
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+```
+
+#Data {data-icon="fa-table"}
+## col
+###
+```{r raw_data}
+files_by_user <- files_by_user %>% select(user, group, file_size_str, file_path)
+datatable(files_by_user, rownames=FALSE, filter="top", extensions = 'Buttons',
+          colnames = c("User", "Team", "File Size", "File Path"),
+          options=list(autoWidth = TRUE, buttons = c('csv'), paging = FALSE, dom = 'Bfrtip'),
+          class = "display")
+
+```
+
